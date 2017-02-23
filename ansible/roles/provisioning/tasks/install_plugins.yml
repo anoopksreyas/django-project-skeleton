@@ -1,0 +1,33 @@
+---
+#- name: Include all the plugins defined in the config file whose plugin manager is 'git'.
+ # git: repo={{ GIT_REPOSITORY.url }}/{{ item }} dest={{ DJANGO_PROJECT.guest.root}}/{{ DJANGO_PROJECT.guest.name }}
+  #with_items: 
+   #   - {{ DJANGO_PROJECT.include_plugins }}
+  #sudo: true
+  #sudo_user: anoop
+  #when: {{ PLUGIN_MANAGER_MAP[item]['manager'] }} == 'git'
+  
+#- name: Include all the plugins defined in the config file whose plugin manager is 'apt'.
+#  apt: name={{item}}={{PLUGIN_MANAGER_MAP[item]['version']}} state=present
+#  with_items:
+#      - "{{ DJANGO_PROJECT.include_plugins }}"
+#  ignore_errors: yes    
+#  when: PLUGIN_MANAGER_MAP['{{item}}']['manager'] == 'apt'
+#  sudo: yes  
+
+- name: Include all the plugins/extras defined in the config file whose plugin manager is 'pip'.
+  pip: name={{ item }} state=present version="{{PLUGIN_MANAGER_MAP[item]['version']}}"
+  with_items:
+      - "{{ DJANGO_PROJECT.include_plugins }}"
+  when: PLUGIN_MANAGER_MAP['{{item}}']['manager'] == 'pip'
+  
+- name: Install RabbitMQ (Message broker) if django-celery is enabled.
+  apt: name=rabbitmq-server=3.2.4-1 state=present
+  when: "'django-celery' in DJANGO_PROJECT.include_plugins"
+  sudo: yes
+  
+- name: Install PostFix (Mail transfer agent) if django-mailer is enabled.
+  apt: name=postfix state=present
+  when: "'django-mailer-2' in DJANGO_PROJECT.include_plugins"
+  sudo: yes
+

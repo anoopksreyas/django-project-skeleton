@@ -1,0 +1,13 @@
+---
+- hosts: [all]
+  sudo: yes 
+  remote_user: vagrant
+  vars_files:
+    - "../configs/project_settings.yml"
+  roles:
+    - common
+    - database
+    - webserver
+    - provisioning
+    - django_manage
+    - manage_supervisord

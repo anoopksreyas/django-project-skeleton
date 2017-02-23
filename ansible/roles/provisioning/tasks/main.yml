@@ -1,0 +1,132 @@
+---
+- name: Check that the dir "{{ DJANGO_PROJECT.guest.root }}" exists.
+  stat: path={{ DJANGO_PROJECT.guest.root }}
+  register: stat_result1
+
+- name: Check that the django project "{{ DJANGO_PROJECT.guest.name }}" already exists on guest machine.
+  stat: path={{ DJANGO_PROJECT.guest.root}}/{{ DJANGO_PROJECT.guest.name }}
+  register: stat_result2
+
+- name: Get custom generated secret key inorder to replace it in the settings.py file.
+  command: python "{{ GUEST_SETUP_ROOT }}/configs/get_secret_key.py"
+  register: GET_SECRET_KEY
+  
+- name: Get all user apps inorder to add it in the settings.py file.
+  command: python {{ GUEST_SETUP_ROOT }}/configs/utility_methods.py "get_user_defined_apps" "{{ DJANGO_PROJECT.guest.apps }}"
+  register: GET_USER_APPS
+  
+- name: Add dynamic installed apps for plugged-in apps.
+  command: python {{ GUEST_SETUP_ROOT }}/configs/utility_methods.py  "get_plugins_settings" "{{ DJANGO_PROJECT.include_plugins }}" "INSTALLED_APP_ITEMS"
+  register: GET_PLUGIN_INSTALLED_APP
+  sudo: yes
+
+- name: Add dynamic url patterns for plugged-in apps.
+  command: python {{ GUEST_SETUP_ROOT }}/configs/utility_methods.py  "get_plugins_settings" "{{ DJANGO_PROJECT.include_plugins }}" "URL_PATTERNS"
+  register: GET_PLUGIN_URL_PATTERNS
+  sudo: yes
+  
+- name: Add middleware classes if any for plugged-in apps.
+  command: python {{ GUEST_SETUP_ROOT }}/configs/utility_methods.py  "get_plugins_settings" "{{ DJANGO_PROJECT.include_plugins }}" "MIDDLEWARE_CLASSES"
+  register: GET_PLUGIN_MIDDLEWARES
+  sudo: yes  
+  
+- name: Add dynamic extra settings for plugged-in apps.
+  command: python {{ GUEST_SETUP_ROOT }}/configs/utility_methods.py  "get_plugins_extra_settings" "{{ DJANGO_PROJECT.include_plugins }}"
+  register: GET_PLUGIN_EXTRA_SETTINGS
+  sudo: yes
+#- debug: var=GET_PLUGIN_EXTRA_SETTINGS.stdout  
+
+- name: Change directory to the django skeleton project and run startproject cmd.
+  command: chdir={{ DJANGO_PROJECT.guest.root }} django-admin.py startproject "{{ DJANGO_PROJECT.guest.name }}"
+  when: stat_result1.stat.exists == true and stat_result2.stat.exists == false
+  
+- name: Create templates directory inside project root folder.
+  file: path={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/templates state=directory
+  
+- name: Create static directory inside project root folder.
+  file: path={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/static state=directory  
+  
+- name: Copy welcome.html template to template/.
+  template: src=welcome.html dest={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/templates/welcome.html
+  ignore_errors: yes
+
+- name: Go to the project directory and then create django apps, if any.
+  command: chdir={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }} python manage.py startapp {{ item }}
+  when: item != '' #only when there is an app.
+  ignore_errors: yes
+  failed_when: false
+  with_items:
+     - "{{DJANGO_PROJECT.guest.apps}}"
+  
+- name: "Create management folder inside the system app to keep custom django manage commands."
+  file: path={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/system/management state=directory
+  ignore_errors: true
+  
+- name: "Copy __init__.py to system/ folder."
+  template: src="__init__.py" dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/system/__init__.py"
+  ignore_errors: true  
+  
+- name: "Copy __init__.py to management folder."
+  template: src="__init__.py" dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/system/management/__init__.py"
+  ignore_errors: true
+  
+- name: "Create management/commands folder inside to keep custom django manage commands."
+  file: path={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/system/management/commands state=directory
+  ignore_errors: true
+  
+- name: "Copy __init__.py to management/commands folder."
+  template: src="__init__.py" dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/system/management/commands/__init__.py"
+  ignore_errors: true
+  
+- name: "Copy change-django-admin-password.py to management/commands folder."
+  template: src="change_django_admin_password.py" dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/system/management/commands/change_django_admin_password.py"
+  sudo: yes
+  
+- name: Replace newly created settings.py file, then replace all the place holders.
+  template: src=settings.py dest={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py
+  ignore_errors: yes
+  
+- name: Replace project's urls.py with custom template, then replace the place holders.
+  template: src=urls.py dest={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/urls.py
+  ignore_errors: yes
+  
+- name: Copy celery.py file to root project folder.
+  template: src=celery.py dest={{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/celery.py
+  when: "'django-celery' in DJANGO_PROJECT.include_plugins"
+  
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/celery.py" regexp='{project_name}' replace="{{ DJANGO_PROJECT.guest.name }}"
+  when: "'django-celery' in DJANGO_PROJECT.include_plugins"
+  
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp="'{celery_settings}'" replace="import djcelery\ndjcelery.setup_loader()"
+  when: "'django-celery' in DJANGO_PROJECT.include_plugins"
+  
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp="'{celery_settings}'" replace=" "
+  when: "'django-celery' not in DJANGO_PROJECT.include_plugins"  
+  
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{site_secret_key}' replace="{{ GET_SECRET_KEY.stdout }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{allowed_host}' replace="{{ MYSITE_NAME }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp="'{plugin_apps}'" replace="{{ GET_PLUGIN_INSTALLED_APP.stdout }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp="'{plugin_middlewares}'" replace="{{ GET_PLUGIN_MIDDLEWARES.stdout }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp="'{extra_settings}'" replace="{{ GET_PLUGIN_EXTRA_SETTINGS.stdout }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{project_name}' replace="{{ DJANGO_PROJECT.guest.name }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{custom_db_engine}' replace="{{ DB_ENGINE_MAP[DJANGO_PROJECT.database.engine]['engine'] }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{custom_db_name}' replace="{{ DJANGO_PROJECT.database.name }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{custom_db_username}' replace="{{ DJANGO_PROJECT.database.username }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp='{custom_db_password}' replace="{{ DJANGO_PROJECT.database.password }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/settings.py" regexp="'{own_app}'" replace="{{ GET_USER_APPS.stdout }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/urls.py" regexp='{project_name}' replace="{{ DJANGO_PROJECT.guest.name }}"
+
+- replace: dest="{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}/{{ DJANGO_PROJECT.guest.name }}/urls.py" regexp="'{plugin_urls}'" replace="{{ GET_PLUGIN_URL_PATTERNS.stdout }}"
+
+- include: install_plugins.yml 

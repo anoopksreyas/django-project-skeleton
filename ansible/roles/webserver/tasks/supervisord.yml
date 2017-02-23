@@ -1,0 +1,49 @@
+---
+- name: Get supervisord programs for plugins, if any.
+  command: python {{ GUEST_SETUP_ROOT }}/configs/get_supervisord_programs.py "{{ DJANGO_PROJECT.include_plugins }}"
+  register: GET_SUPERVISORD_PROGRAMS
+  sudo: yes
+  
+- debug: var=GET_SUPERVISORD_PROGRAMS.stdout
+    
+- name: "Create directory for supervisord"
+  file: path={{SUPERVISORD_HOME}} state=directory
+  sudo: yes
+
+- name: "Generating master supervisord config"
+  template: src=supervisord.conf dest={{SUPERVISORD_HOME}}/supervisord.conf owner=root mode=0755
+  sudo: yes
+  
+- replace: dest={{SUPERVISORD_HOME}}/supervisord.conf regexp="{extra_programs}" replace="{{ GET_SUPERVISORD_PROGRAMS.stdout }}" owner=root mode=0755   
+
+- name: "Create supervisord process"
+  template: src=supervisord.sh dest=/etc/init.d/supervisord owner=root mode=0755
+  sudo: yes
+
+- name: "Make sure sysconfig directory is created"
+  file: path=/etc/sysconfig state=directory owner=root group=root
+  sudo: yes
+
+- name: "Create supervisord sysconfig"
+  copy: src=supervisord-sysconfig.sh dest=/etc/sysconfig/supervisord owner=root mode=0755
+  sudo: yes
+
+- name: "Add temporary supervisord empty files for supervisord to start"
+  shell: touch /etc/supervisord/{{ MYSITE_NAME }}_uwsgi.ini
+  sudo: yes
+
+- name: "Giving permission to supervisord"
+  command: chmod +x /etc/init.d/supervisord
+  sudo:  yes
+  
+- name: "make update-rc.d supervisord defaults"
+  command: update-rc.d supervisord defaults
+  sudo: yes
+  
+- name: "Start supervisord process if it hasn't been already started"
+  command: /etc/init.d/supervisord start && echo "Success" creates=/tmp/supervisord.pid
+  sudo: yes
+  
+- name: "Generating {{ MYSITE_NAME }}_uwsgi.ini file"
+  template: src=mysite_uwsgi.ini dest={{ SUPERVISORD_HOME }}/{{ MYSITE_NAME }}_uwsgi.ini owner=vagrant mode=0755
+  sudo: yes

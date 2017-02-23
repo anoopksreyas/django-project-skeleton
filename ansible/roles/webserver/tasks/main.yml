@@ -1,0 +1,15 @@
+---
+- name: Installing required VM packages.
+  apt: name={{ item }} state=installed
+  with_items:
+      - vagrant
+  sudo: yes
+  
+- name: Installing uwsgi and supervisord.
+  pip: name={{ item.pkg }} version={{ item.ver }} state=present
+  with_items:
+    - {'pkg': 'uwsgi', 'ver': '2.0.3'}
+    - {'pkg': 'supervisor', 'ver': '3.0b2'}
+
+- include: web_config.yml
+- include: supervisord.yml

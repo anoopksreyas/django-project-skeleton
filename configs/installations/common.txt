@@ -1,0 +1,13 @@
+#These packages will be installed irrespective of projects.
+
+#Django==1.9.0
+Django==1.8.5
+django-admin-tools==0.5.2
+Fabric==1.10.1
+ipython==0.12.1
+pycrypto==2.6.1
+pylint==1.4.3
+pylint-django==0.6
+pylint-plugin-utils==0.2.3
+pytz==2014.10
+requests==2.5.1

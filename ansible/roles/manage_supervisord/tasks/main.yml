@@ -1,0 +1,19 @@
+---
+#- name: check supervisord status
+#  action: shell pgrep -f supervisord
+#  register: supervisor_status
+#  
+#- debug: var=supervisor_status.stdout
+
+#- name: "restart supervisord processes"
+#  command: "/usr/local/bin/supervisorctl -c /etc/supervisord/supervisord.conf {{ item.action }} {{ item.program }}"
+#  sudo: yes
+#  with_items:
+#    - {program: "{{ MYSITE_NAME }}", action: "restart"}
+#    - {program: "{{ MYSITE_NAME }}-celery", action: "start"}
+
+- name: Ensure supervisord is running.
+  service: name=supervisord state=reloaded enabled=yes
+  sudo: yes
+  ignore_errors: yes
+  failed_when: false

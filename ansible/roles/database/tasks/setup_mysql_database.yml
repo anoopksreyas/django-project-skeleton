@@ -1,0 +1,8 @@
+---
+- name: "MySQL: Create database for the project, if not exists."
+  mysql_db: name={{ DJANGO_PROJECT.database.name }} state=present
+
+- name: "MySQL: Create user for the database."
+  mysql_user: name={{ DJANGO_PROJECT.database.username }} password={{ DJANGO_PROJECT.database.password }} priv=*.*:ALL,GRANT state=present
+  notify:
+      - Restart MySQL

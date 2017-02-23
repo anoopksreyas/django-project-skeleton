@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+import sys, yaml, ast
+
+def get_plugins_settings(argv):
+    '''
+    Returns comma seperated string of items that needs to be
+    added to settings.INSTALLED_APP and urlpatterns to project's urls.py for
+    the list of plugins in 'argv[2]'.
+    
+    @params: argv[2] = List of included plugins.
+    @params: argv[3] = settings need to read. (installed_app OR url_patterns)
+    '''
+    plugins_list = ast.literal_eval(argv[2]) #converts string to correponding python literal.
+    
+    with open('/home/vagrant/setup/configs/plugins/vars.yml', 'r') as f:
+        doc = yaml.load(f)
+        plugin_settings = ''
+        
+        for each_plugin in plugins_list:
+            try:
+                plugins_all_settings = doc[each_plugin][str(argv[3])]
+                for each in plugins_all_settings:
+                    if argv[3] == 'URL_PATTERNS':
+                        plugin_settings = plugin_settings+("%s,\n    " %each) #without quotes
+                    else:    
+                        plugin_settings = plugin_settings+("'%s',\n    " %each) #with quotes
+            except KeyError:
+                pass
+            
+        print(plugin_settings)
+        
+        
+class extra_settings_vars:
+    def __init__ (self,settings_var_name,settings_var_value,settings_var_type):
+        self.var_name = settings_var_name
+        self.var_value = settings_var_value
+        self.var_type = settings_var_type
+    
+    
+def get_plugins_extra_settings(argv):    
+    plugins_list = ast.literal_eval(argv) #converts string to correponding python literal.
+    #plugins_list =['django-allauth','test-app']
+    with open('/home/vagrant/setup/configs/plugins/vars.yml', 'r') as f:
+        doc = yaml.load(f)
+        plugin_extra_settings = ''       # final string to replace the placeholder in settings file
+        extra_settings_obj_list =[]      # 
+        extra_settings_dict ={}
+        try:
+            for each_plugin in plugins_list:
+                #try:
+                    extra_settings = doc[each_plugin]['EXTRA_SETTINGS']                
+                    for key1, value1 in extra_settings.items():
+                        
+                        if type(value1) == int:
+                            # if settings var is a single value it is simply added to sttings file without handling the duplicates
+                            var_type1= int                        
+                            
+                        elif type(value1)== list:
+                            var_type1 = list                        
+                            
+                        elif type(ast.literal_eval(value1)) == tuple:
+                            value1 = list(ast.literal_eval(value1))
+                            var_type1= tuple             
+                                            
+                        if key1 in extra_settings_dict:
+                            # if the setting var is already present, append to it
+                            extra_settings_dict[key1].var_value.extend(value1)                        
+                            extra_settings_dict[key1].var_value = list(set(extra_settings_dict[key1].var_value))
+                            
+                        else:
+                            settings_obj = extra_settings_vars(key1,value1,var_type1)   
+                            extra_settings_dict[key1] = settings_obj
+            
+            for key2, settings_obj in extra_settings_dict.items():            
+                if settings_obj.var_type == int:
+                    settings_obj.var_value = str(settings_obj.var_value)                
+                else:
+                    settings_obj.var_value = str(settings_obj.var_type(settings_obj.var_value))
+                    
+                plugin_extra_settings += key2 +' = '+ settings_obj.var_value +' \n\n'
+        except Exception as e:
+            print (e)
+        print(plugin_extra_settings)
+        
+        
+if __name__ == '__main__':
+    '''
+    Method name will be passed from the calling function.
+    args = (filename, method name, plugins, required settings_name)
+    '''
+    eval(sys.argv[1])(sys.argv)

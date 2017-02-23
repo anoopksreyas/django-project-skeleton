@@ -1,0 +1,25 @@
+---
+- name: Remove all *.pyc files, if any.
+  command: find . -name '*.pyc' -delete
+  sudo: yes
+  ignore_errors: yes
+  
+- name: "Run django manage commands for the apps."
+  django_manage: 
+      command="{{item.cmd}}"
+      app_path="{{DJANGO_PROJECT.guest.root}}/{{DJANGO_PROJECT.guest.name}}"
+      apps="{{item.apps}}"
+      settings="{{DJANGO_PROJECT.guest.name}}.settings"
+  with_items:
+      - {cmd: migrate, apps: ""}
+      - {cmd: "createsuperuser --noinput --username={{DJANGO_PROJECT.admin.username}} --email={{DJANGO_PROJECT.admin.email}}", apps: ""}
+      - {cmd: test, apps: ""}
+  ignore_errors: yes
+  failed_when: false
+  #with failed_when=false, task will be failed silenetly when there is any error without any error messages.
+
+- name: "Set password for django admin user."
+  command: chdir="{{item.chdir}}" python manage.py {{item.cmd}} --username={{DJANGO_PROJECT.admin.username}} --password={{DJANGO_PROJECT.admin.password}}
+  with_items:
+      - {chdir: "{{ DJANGO_PROJECT.guest.root }}/{{ DJANGO_PROJECT.guest.name }}", cmd: change_django_admin_password}
+  ignore_errors: yes

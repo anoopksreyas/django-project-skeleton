@@ -1,0 +1,20 @@
+---
+- name: Installing pip.
+  apt: name=python-pip state=present update_cache=yes
+  sudo: yes
+
+- name: Installing Python dev.
+  apt: name=python-dev state=present
+  sudo: yes
+
+- name: Installing Git.
+  apt: name=git state=present
+  sudo: yes
+
+- name: Installing packages in common.txt
+  command: "pip install -r {{ GUEST_SETUP_ROOT }}/configs/installations/common.txt"
+
+- name: Install celery if django-celery is enabled.
+  pip: name=celery state=present version="3.1.17"
+  when: "'django-celery' in DJANGO_PROJECT.include_plugins"
+  sudo: yes

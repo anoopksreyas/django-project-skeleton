@@ -1,0 +1,32 @@
+---
+- name: "Installing latest version of NGINX"
+  apt: name=nginx state=latest
+  sudo: yes
+  
+- name: "Placing nginx configurations in /etc/nginx/nginx-*.conf"
+  template: src={{ item.src }} dest=/etc/nginx/{{ item.dest }} owner=root group=root mode=0644
+  with_items:
+    - { 'src': 'nginx.conf', 'dest': 'nginx.conf' }
+    - { 'src': 'nginx-debug.conf', 'dest': 'nginx-debug.conf' }
+  sudo: true
+
+- name: "Adding site"
+  template: src={{item}} dest=/etc/nginx/sites-available/{{MYSITE_NAME}}-local.conf owner=root group=root mode=0644
+  with_items:
+    - mysite_nginx.conf
+  sudo: true
+
+- name: "Enabling sites (non-debug)"
+  file: path=/etc/nginx/sites-enabled/{{item}} src=/etc/nginx/sites-available/{{item}} state=link owner=root group=root mode=0644
+  with_items:
+    - "{{MYSITE_NAME}}-local.conf"
+  sudo: true
+
+- name: "Creating nginx logs directory."
+  file: path={{ USER_HOME }}/logs state=directory owner=vagrant group=vagrant mode=0777
+  sudo: yes
+  notify: "restart nginx"
+
+- name: "Updating permissions for {{USER_HOME}}"
+  file: path={{USER_HOME}} state=directory owner=vagrant group=vagrant mode=0755
+  sudo: yes

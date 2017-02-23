@@ -1,0 +1,36 @@
+---
+- name: "MySQL: Installing required packages."
+  apt: name={{ item }} state=installed force=yes update_cache=yes
+  with_items:
+     - mysql-server-core-5.5
+     - mysql-client-core-5.5
+     - libmysqlclient-dev
+     - python-mysqldb
+     - mysql-server
+     - mysql-client
+  sudo: yes
+  notify:
+     - Start MySQL
+  when: DJANGO_PROJECT.database.engine == 'mysql'
+    
+- name: "Copying .my.cnf file with root credentials."
+  template: src=my.cnf dest=~/.my.cnf owner=root mode=0644
+  notify:
+     - Restart MySQL
+  sudo: yes 
+   
+- include: setup_mysql_database.yml
+  when: DJANGO_PROJECT.database.engine == 'mysql'
+  
+##########################PostGRESQL###############################
+#- name: "PostgresSQL: Installing required packages."
+#  apt: name={{ item }} state=installed update_cache=yes
+#  with_items:
+#      - postgresql
+#      - postgresql-contrib
+#  sudo: yes
+#  when: DJANGO_PROJECT.database.engine == 'postgres'
+#
+#- include: setup_postgres_database.yml
+#  when: DJANGO_PROJECT.database.engine == 'postgres'
+

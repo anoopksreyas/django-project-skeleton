@@ -1,0 +1,76 @@
+---
+DEPLOYMENT_HOST: "localhost"
+#[localhost, staging, production]
+
+MYSITE_NAME: HOST_NAME    #HOST_NAME: Domain name will be <MYSITE_NAME>-local.com
+
+DJANGO_PROJECT:
+    host:
+        root: HOST_ROOT     #HOST_ROOT: The directory where django project will be created. 
+
+    guest:
+        root: /home/vagrant/django_skeleton_projects  #Optional change. Don't change '/home/vagrant'.
+        name: PROJECT_NAME      #PROJECT_NAME: Your django project name. 
+        apps: #List of django apps need to create. 
+            - app1
+            - app2
+
+    database:
+        #Currently supports only 'mysql'. 
+        engine: mysql           #Don't change.
+        name: DB_NAME           #DB_NAME:  Your projects DB name. 
+        username: DB_USERNAME        #DB_USERNAME: Mysql username.
+        password: DB_PASSWORD     #DB_PASSWORD: Mysql password.
+        host: localhost
+        port: 3306
+    
+    admin:  #Your django project's admin credentials.
+        username: ADMIN_SITE_USERNAME    #ADMIN_SITE_USERNAME: Project's admin site username
+        password: ADMIN_SITE_PASSWORD    #ADMIN_SITE_PASSWORD: Project's admin site password
+        email: anoop.kolari@tarams.com
+
+    include_plugins:  #Available 3rd party plugins. You can comment out plugins you don't need.
+        - django-debug-toolbar
+        - django-allauth
+        - djangorestframework
+        - django-mailer-2
+        - django-celery
+        
+
+################### WARNING: Don't change below settings. #################
+USER_HOME: "/home/vagrant"
+
+SUPERVISORD_HOME: "/etc/supervisord"
+
+GUEST_SETUP_ROOT: "/home/vagrant/setup"
+
+DB_ENGINE_MAP:
+    mysql:
+        engine: django.db.backends.mysql
+    postgres:
+        engine: django.db.backends.postgresql_psycopg2
+
+PLUGIN_MANAGER_MAP:
+    django-debug-toolbar:
+        manager: pip
+        version: '1.4.0'
+        
+    django-allauth:
+        manager: pip
+        version: '0.24.1'
+        
+    djangorestframework:
+        manager: pip
+        version: '3.3.2'
+        
+    django-mailer-2:
+        manager: pip
+        version: '1.3.3'
+        
+    django-celery:
+        manager: pip
+        version: '3.1.17'
+        
+MYSQL_ROOT_USERNAME: root
+#Keep password empty.
+MYSQL_ROOT_PASSWORD: 
