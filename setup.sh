@@ -3,7 +3,7 @@ function install()
 {
     echo "Archiving and extracting setup project from git."
     echo "-----------------------------------------------"
-    git archive --format=zip --remote=git@gitlab.com:vamsy-krishna/DjangoPythonProjectSkeleton.git develop > setup.zip
+    git archive --format=zip --remote=https://github.com/anoopksreyas/django-project-skeleton.git develop > setup.zip
     unzip setup.zip -d setup
     echo ""
     echo "Provisioning."
